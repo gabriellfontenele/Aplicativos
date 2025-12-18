@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PsiqCYP - Especialista em Interações</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .drug-card.selected { border-color: #3b82f6; background-color: #eff6ff; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen">
+
+    <!-- Header -->
+    <header class="bg-white border-b sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <div class="bg-blue-600 p-1.5 rounded-lg text-white">
+                    <i data-lucide="shield-check"></i>
+                </div>
+                <h1 class="text-xl font-bold tracking-tight text-blue-900">Psiq<span class="text-blue-600">CYP</span> <span class="text-xs font-normal text-slate-400 ml-2">v2.5.2</span></h1>
+            </div>
+            <div class="flex items-center gap-4 text-sm font-medium">
+                <div class="hidden md:flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">
+                    <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                    Base de Dados Corrigida
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        <!-- Coluna Esquerda: Seleção e Filtro -->
+        <div class="lg:col-span-4 space-y-6">
+            <div class="bg-white rounded-2xl shadow-sm border p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold text-slate-800">Selecione os Fármacos</h2>
+                    <span id="selected-count" class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-bold">0</span>
+                </div>
+                
+                <div class="relative mb-4">
+                    <i data-lucide="search" class="absolute left-3 top-2.5 text-slate-400 w-4 h-4"></i>
+                    <input type="text" id="drug-search" placeholder="Buscar por nome ou classe..." class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+                </div>
+
+                <div class="flex flex-wrap gap-2 mb-4">
+                    <button onclick="setFilter('all')" class="text-[10px] font-bold px-2 py-1 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">TODOS</button>
+                    <button onclick="setFilter('Antidepressivo')" class="text-[10px] font-bold px-2 py-1 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">AD</button>
+                    <button onclick="setFilter('Antipsicótico')" class="text-[10px] font-bold px-2 py-1 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 transition-colors">AP</button>
+                    <button onclick="setFilter('Estabilizador')" class="text-[10px] font-bold px-2 py-1 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors">ESTAB</button>
+                    <button onclick="setFilter('Ansiolítico')" class="text-[10px] font-bold px-2 py-1 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-colors">ANSIO</button>
+                </div>
+
+                <div id="drug-list" class="space-y-2 max-h-[550px] overflow-y-auto pr-2 scrollbar-hide">
+                    <!-- Fármacos populados por JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Coluna Direita: Resultados -->
+        <div class="lg:col-span-8 space-y-6">
+            
+            <!-- Toggles de Contexto -->
+            <div class="bg-white rounded-2xl shadow-sm border p-4 flex flex-wrap gap-4">
+                <label class="flex items-center gap-3 cursor-pointer group">
+                    <input type="checkbox" id="smoking-toggle" class="w-5 h-5 text-blue-600 rounded border-slate-300 focus:ring-blue-500">
+                    <div>
+                        <span class="text-sm font-semibold group-hover:text-blue-600 transition-colors">Tabagismo Ativo</span>
+                        <p class="text-[10px] text-slate-500">Induz fortemente a CYP1A2</p>
+                    </div>
+                </label>
+                <div class="w-px h-8 bg-slate-200 hidden md:block"></div>
+                <label class="flex items-center gap-3 cursor-pointer group">
+                    <input type="checkbox" id="prodrug-toggle" class="w-5 h-5 text-blue-600 rounded border-slate-300 focus:ring-blue-500">
+                    <div>
+                        <span class="text-sm font-semibold group-hover:text-blue-600 transition-colors">Uso de Codeína/Tramadol</span>
+                        <p class="text-[10px] text-slate-500">Verificar falha analgésica via 2D6</p>
+                    </div>
+                </label>
+            </div>
+
+            <div id="empty-state" class="bg-white rounded-2xl shadow-sm border border-dashed border-slate-300 p-16 text-center">
+                <div class="bg-slate-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-400">
+                    <i data-lucide="beaker" class="w-10 h-10"></i>
+                </div>
+                <h3 class="text-xl font-semibold text-slate-800">Análise Farmacológica</h3>
+                <p class="text-slate-500 mt-2 max-w-sm mx-auto">Selecione fármacos para verificar interações CYP450 e alertas clínicos de alta relevância.</p>
+            </div>
+
+            <div id="analysis-content" class="hidden space-y-6">
+                <!-- Relatório de Interações -->
+                <div class="bg-white rounded-2xl shadow-sm border p-6">
+                    <div class="flex items-center gap-2 mb-6 text-blue-900">
+                        <i data-lucide="zap" class="text-amber-500"></i>
+                        <h2 class="text-lg font-bold">Relatório de Segurança Metabólica</h2>
+                    </div>
+                    <div id="interaction-alerts" class="space-y-4"></div>
+                </div>
+
+                <!-- Detalhes Individuais -->
+                <div id="drug-details" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+
+                <!-- Consultor IA -->
+                <div class="bg-slate-900 rounded-2xl shadow-xl p-6 text-white relative overflow-hidden">
+                    <div class="relative z-10">
+                        <div class="flex items-center gap-2 mb-4">
+                            <i data-lucide="brain" class="text-purple-400"></i>
+                            <h3 class="font-bold">Parecer de Especialista (Gemini)</h3>
+                        </div>
+                        <div id="ai-response" class="text-slate-300 text-sm leading-relaxed mb-6 bg-slate-800/50 p-4 rounded-xl border border-slate-700 min-h-[60px]">
+                            Clique no botão para uma análise integrada baseada nas últimas evidências.
+                        </div>
+                        <button id="ask-ai-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20">
+                            <i data-lucide="message-square-plus"></i>
+                            Solicitar Parecer Clínico Completo
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const drugs = [
+            // ANTIDEPRESSIVOS
+            { id: 'agomelatina', name: 'Agomelatina', class: 'Antidepressivo', substrates: ['1A2'], inhibitors: {}, inductors: {}, mustKnow: "Contraindicada com inibidores potentes da CYP1A2 (ex: fluvoxamina); risco de hepatotoxicidade.", notes: 'Ressincroniza ritmos circadianos.' },
+            { id: 'amitriptilina', name: 'Amitriptilina', class: 'Antidepressivo (Tricíclico)', substrates: ['2D6', '2C19', '1A2'], inhibitors: {}, inductors: {}, mustKnow: "Alto risco de efeitos anticolinérgicos e cardiotoxicidade em overdose.", notes: 'Metabolizada em nortriptilina.' },
+            { id: 'bupropiona', name: 'Bupropiona', class: 'Antidepressivo', substrates: ['2B6'], inhibitors: { '2D6': 'Forte' }, inductors: {}, mustKnow: "Aumenta risco de convulsões; contraindicada em transtornos alimentares. Potente inibidor 2D6.", notes: 'Efeito noradrenérgico e dopaminérgico.' },
+            { id: 'citalopram', name: 'Citalopram', class: 'Antidepressivo (ISRS)', substrates: ['2C19', '3A4'], inhibitors: { '2D6': 'Fraco' }, inductors: {}, mustKnow: "Risco de prolongamento QT (máx 40mg/dia).", notes: 'Baixo potencial de interações.' },
+            { id: 'clomipramina', name: 'Clomipramina', class: 'Antidepressivo (Tricíclico)', substrates: ['2D6', '1A2'], inhibitors: {}, inductors: {}, mustKnow: "Muito serotonérgica; risco de síndrome serotonérgica.", notes: 'Padrão-ouro para TOC.' },
+            { id: 'desvenlafaxina', name: 'Desvenlafaxina', class: 'Antidepressivo (IRSN)', substrates: ['3A4 (mínimo)'], inhibitors: {}, inductors: {}, mustKnow: "Metabolismo independente da 2D6. Previsível.", notes: 'Metabólito ativo da venlafaxina.' },
+            { id: 'duloxetina', name: 'Duloxetina', class: 'Antidepressivo (IRSN)', substrates: ['1A2', '2D6'], inhibitors: { '2D6': 'Moderado' }, inductors: {}, mustKnow: "Evitar em hepatopatias. Útil em dor neuropática.", notes: 'Níveis caem em fumantes.' },
+            { id: 'escitalopram', name: 'Escitalopram', class: 'Antidepressivo (ISRS)', substrates: ['2C19', '3A4'], inhibitors: {}, inductors: {}, mustKnow: "Considerado o ISRS com menor potencial de interação medicamentosa.", notes: 'Isómero S do citalopram.' },
+            { id: 'fluoxetina', name: 'Fluoxetina', class: 'Antidepressivo (ISRS)', substrates: ['2D6', '2C9', '2C19', '3A4'], inhibitors: { '2D6': 'Forte', '2C19': 'Moderado', '3A4': 'Moderado' }, inductors: {}, mustKnow: "Meia-vida longa (5 semanas de washout para IMAO). Potente inibidor 2D6.", notes: 'Efeito ativador.' },
+            { id: 'fluvoxamina', name: 'Fluvoxamina', class: 'Antidepressivo (ISRS)', substrates: ['1A2', '2D6'], inhibitors: { '1A2': 'Forte', '2C19': 'Forte', '3A4': 'Moderado' }, inductors: {}, mustKnow: "Potente inibidor da 1A2: aumenta níveis de cafeína, clozapina e olanzapina.", notes: 'Propriedades ansiolíticas (Sigma-1).' },
+            { id: 'imipramina', name: 'Imipramina', class: 'Antidepressivo (Tricíclico)', substrates: ['2D6', '1A2'], inhibitors: {}, inductors: {}, mustKnow: "Alto risco de hipotensão ortostática e efeitos anticolinérgicos.", notes: 'Pode causar cardiotoxicidade.' },
+            { id: 'mirtazapina', name: 'Mirtazapina', class: 'Antidepressivo (Atípico)', substrates: ['2D6', '3A4', '1A2'], inhibitors: {}, inductors: {}, mustKnow: "Causa sedação e ganho de peso (bloqueio H1).", notes: 'Útil em insónia.' },
+            { id: 'moclobemida', name: 'Moclobemida', class: 'Antidepressivo (IMAO)', substrates: ['2C19', '2D6'], inhibitors: { '2C19': 'Inibidor', '2D6': 'Inibidor' }, inductors: {}, mustKnow: "IMAO reversível; menor risco dietético que IMAOs clássicos.", notes: 'Não combinar com ISRS.' },
+            { id: 'nefazodona', name: 'Nefazodona', class: 'Antidepressivo', substrates: ['3A4'], inhibitors: { '3A4': 'Forte' }, inductors: {}, mustKnow: "Risco de hepatotoxicidade grave; potente inibidor 3A4.", notes: 'Baixo risco de disfunção sexual.' },
+            { id: 'nortriptilina', name: 'Nortriptilina', class: 'Antidepressivo (Tricíclico)', substrates: ['2D6'], inhibitors: {}, inductors: {}, mustKnow: "Janela terapêutica estreita (monitorar níveis séricos).", notes: 'Menos sedativa que amitriptilina.' },
+            { id: 'paroxetina', name: 'Paroxetina', class: 'Antidepressivo (ISRS)', substrates: ['2D6'], inhibitors: { '2D6': 'Forte' }, inductors: {}, mustKnow: "Forte inibição da 2D6. Alto risco de síndrome de retirada.", notes: 'Efeito anticolinérgico leve.' },
+            { id: 'sertralina', name: 'Sertralina', class: 'Antidepressivo (ISRS)', substrates: ['2C19', '2D6', '3A4'], inhibitors: { '2D6': 'Fraco' }, inductors: {}, mustKnow: "Perfil cardiovascular seguro. Diarreia é comum.", notes: 'Leve ação dopaminérgica.' },
+            { id: 'tianeptina', name: 'Tianeptina', class: 'Antidepressivo', substrates: ['Beta-oxidação'], inhibitors: {}, inductors: {}, mustKnow: "Mecanismo único; pouca interação via CYP450.", notes: 'Potencial de abuso em doses altas.' },
+            { id: 'tranilcipromina', name: 'Tranilcipromina', class: 'Antidepressivo (IMAO)', substrates: ['2C19'], inhibitors: { '2C19': 'Forte', '2D6': 'Inibidor' }, inductors: {}, mustKnow: "Restrições dietéticas rigorosas (tiramina). Washout necessário.", notes: 'Efeito estimulante.' },
+            { id: 'trazodona', name: 'Trazodona', class: 'Antidepressivo', substrates: ['3A4', '2D6'], inhibitors: {}, inductors: {}, mustKnow: "Risco de priapismo e hipotensão ortostática. Muito sedativa.", notes: 'Usada como hipnótico.' },
+            { id: 'venlafaxina', name: 'Venlafaxina', class: 'Antidepressivo (IRSN)', substrates: ['2D6', '3A4'], inhibitors: {}, inductors: {}, mustKnow: "Pode causar hipertensão dose-dependente. Síndrome de retirada intensa.", notes: 'Mecanismo dual.' },
+            { id: 'vilazodona', name: 'Vilazodona', class: 'Antidepressivo', substrates: ['3A4'], inhibitors: {}, inductors: {}, mustKnow: "Tomar com alimentos para garantir absorção.", notes: 'Agonista parcial 5HT1A.' },
+            { id: 'vortioxetina', name: 'Vortioxetina', class: 'Antidepressivo', substrates: ['2D6', '3A4'], inhibitors: {}, inductors: {}, mustKnow: "Ação pró-cognitiva; náusea frequente; longa meia-vida.", notes: 'Mecanismo multimodal.' },
+
+            // ANTIPSICÓTICOS
+            { id: 'amissulprida', name: 'Amissulprida', class: 'Antipsicótico Atípico', substrates: ['Renal'], inhibitors: {}, inductors: {}, mustKnow: "Eliminação renal; risco de prolongamento do intervalo QT dose-dependente.", notes: 'Pouca interação no CYP.' },
+            { id: 'aripiprazol', name: 'Aripiprazol', class: 'Antipsicótico Atípico', substrates: ['2D6', '3A4'], inhibitors: {}, inductors: {}, mustKnow: "Ajustar dose com inibidores de 2D6 ou 3A4.", notes: 'Agonista parcial D2.' },
+            { id: 'asenapina', name: 'Asenapina', class: 'Antipsicótico Atípico', substrates: ['1A2', '2D6', '3A4'], inhibitors: { '2D6': 'Fraco' }, inductors: {}, mustKnow: "Uso sublingual obrigatório; não comer/beber logo após.", notes: 'Risco de hipoestesia oral.' },
+            { id: 'blonanserina', name: 'Blonanserina', class: 'Antipsicótico Atípico', substrates: ['3A4'], inhibitors: {}, inductors: {}, mustKnow: "Tomar após refeições; níveis sensíveis a 3A4.", notes: 'Alta afinidade D3.' },
+            { id: 'brexpiprazol', name: 'Brexpiprazol', class: 'Antipsicótico Atípico', substrates: ['2D6', '3A4'], inhibitors: {}, inductors: {}, mustKnow: "Reduzir dose com inibidores de 2D6/3A4.", notes: 'Agonista parcial D2.' },
+            { id: 'cariprazina', name: 'Cariprazina', class: 'Antipsicótico Atípico', substrates: ['3A4', '2D6'], inhibitors: {}, inductors: {}, mustKnow: "Meia-vida muito longa; metabólitos ativos persistem semanas.", notes: 'Ação em D3.' },
+            { id: 'clorpromazina', name: 'Clorpromazina', class: 'Antipsicótico Típico', substrates: ['2D6'], inhibitors: { '2D6': 'Moderado' }, inductors: {}, mustKnow: "Risco de hipotensão e depósitos oculares.", notes: 'Baixa potência.' },
+            { id: 'clozapina', name: 'Clozapina', class: 'Antipsicótico Atípico', substrates: ['1A2', '2C19', '3A4', '2D6'], inhibitors: {}, inductors: {}, mustKnow: "Agranulocitose; tabagismo reduz níveis. Risco de convulsões.", notes: 'Refratariedade.' },
+            { id: 'flufenazina', name: 'Flufenazina', class: 'Antipsicótico Típico', substrates: ['2D6'], inhibitors: {}, inductors: {}, mustKnow: "Alta potência; alto risco de SEP.", notes: 'Disponível em depot.' },
+            { id: 'haloperidol', name: 'Haloperidol', class: 'Antipsicótico Típico', substrates: ['3A4', '2D6'], inhibitors: { '2D6': 'Moderado' }, inductors: {}, mustKnow: "Alto risco de SEP e prolongamento QT IV.", notes: 'Butirofenona.' },
+            { id: 'iloperidona', name: 'Iloperidona', class: 'Antipsicótico Atípico', substrates: ['2D6', '3A4'], inhibitors: {}, inductors: {}, mustKnow: "Titular devagar por causa da hipotensão.", notes: 'Prolonga QTc.' },
+            { id: 'levomepromazina', name: 'Levomepromazina', class: 'Antipsicótico Típico', substrates: ['2D6'], inhibitors: { '2D6': 'Sim' }, inductors: {}, mustKnow: "Sedação e hipotensão intensas.", notes: 'Cuidados paliativos.' },
+            { id: 'loxapina', name: 'Loxapina', class: 'Antipsicótico Típico', substrates: ['1A2', '2D6', '3A4'], inhibitors: {}, inductors: {}, mustKnow: "Metabólito amoxapina é antidepressivo.", notes: 'Dibenzoxazepina.' },
+            { id: 'lumateperona', name: 'Lumateperona', class: 'Antipsicótico Atípico', substrates: ['3A4', '2C8', '1A2'], inhibitors: {}, inductors: {}, mustKnow: "Evitar com inibidores/indutores fortes da 3A4.", notes: 'Baixo risco metabólico.' },
+            { id: 'lurasidona', name: 'Lurasidona', class: 'Antipsicótico Atípico', substrates: ['3A4'], inhibitors: {}, inductors: {}, mustKnow: "Tomar com alimentos (min 350 kcal).", notes: 'Depressão bipolar.' },
+            { id: 'olanzapina', name: 'Olanzapina', class: 'Antipsicótico Atípico', substrates: ['1A2', '2D6'], inhibitors: {}, inductors: {}, mustKnow: "Ganho de peso; tabagismo induz 1A2 e reduz níveis.", notes: 'Risco metabólico.' },
+            { id: 'paliperidona', name: 'Paliperidona', class: 'Antipsicótico Atípico', substrates: ['Renal', '3A4'], inhibitors: {}, inductors: {}, mustKnow: "Excreção renal predominante; ajustar dose no ClCr.", notes: 'Tecnologia OROS.' },
+            { id: 'perfenazina', name: 'Perfenazina', class: 'Antipsicótico Típico', substrates: ['2D6'], inhibitors: {}, inductors: {}, mustKnow: "Alta potência; sensível a inibidores da 2D6.", notes: 'Fenotiazina.' },
+            { id: 'pimozida', name: 'Pimozida', class: 'Antipsicótico Típico', substrates: ['3A4', '1A2', '2D6'], inhibitors: { '2D6': 'Inibidor' }, inductors: {}, mustKnow: "Contraindicada com inibidores de 3A4 ou 2D6.", notes: 'Uso em tiques/Tourette.' },
+            { id: 'quetiapina', name: 'Quetiapina', class: 'Antipsicótico Atípico', substrates: ['3A4'], inhibitors: {}, inductors: {}, mustKnow: "Sedação e ganho de peso. Níveis caem com carbamazepina.", notes: 'Ação dose-dependente.' },
+            { id: 'risperidona', name: 'Risperidona', class: 'Antipsicótico Atípico', substrates: ['2D6'], inhibitors: {}, inductors: {}, mustKnow: "Aumento da prolactina; risco de SEP em doses altas.", notes: 'Atípico clássico.' },
+            { id: 'sulpirida', name: 'Sulpirida', class: 'Antipsicótico Típico', substrates: ['Renal'], inhibitors: {}, inductors: {}, mustKnow: "Excreção renal; causa hiperprolactinemia importante.", notes: 'Benzamida.' },
+            { id: 'tioridazina', name: 'Tioridazina', class: 'Antipsicótico Típico', substrates: ['2D6'], inhibitors: { '2D6': 'Forte' }, inductors: {}, mustKnow: "Risco grave de arritmia e retinopatia.", notes: 'Inibidor 2D6.' },
+            { id: 'ziprasidona', name: 'Ziprasidona', class: 'Antipsicótico Atípico', substrates: ['3A4'], inhibitors: {}, inductors: {}, mustKnow: "Tomar com alimentos (500 kcal); prolonga QTc.", notes: 'Neutro no peso.' },
+            { id: 'zuclopentixol', name: 'Zuclopentixol', class: 'Antipsicótico Típico', substrates: ['2D6', '3A4'], inhibitors: {}, inductors: {}, mustKnow: "Eficaz para agressividade e agitação aguda.", notes: 'Tioxanteno.' },
+
+            // ESTABILIZADORES
+            { id: 'carbamazepina', name: 'Carbamazepina', class: 'Estabilizador', substrates: ['3A4'], inhibitors: {}, inductors: { '3A4': 'Forte', '1A2': 'Forte', '2C9': 'Forte' }, mustKnow: "Forte indutor: anula eficácia de muitos fármacos.", notes: 'Auto-indução.' },
+            { id: 'valproato', name: 'Valproato', class: 'Estabilizador', substrates: ['UGT'], inhibitors: { '2C9': 'Leve' }, inductors: {}, mustKnow: "Inibe glucuronidação; meropenem reduz níveis rapidamente.", notes: 'Ácido valpróico.' },
+            { id: 'litio', name: 'Lítio', class: 'Estabilizador', substrates: ['Renal'], inhibitors: {}, inductors: {}, mustKnow: "Janela estreita; AINEs aumentam toxicidade.", notes: 'Sem metabolismo CYP.' },
+
+            // ANSIOLÍTICOS
+            { id: 'pregabalina', name: 'Pregabalina', class: 'Ansiolítico', substrates: ['Renal'], inhibitors: {}, inductors: {}, mustKnow: "Sinergia com opioides; ajuste renal.", notes: 'Gabapentinóide.' },
+            { id: 'alprazolam', name: 'Alprazolam', class: 'Ansiolítico', substrates: ['3A4'], inhibitors: {}, inductors: {}, mustKnow: "Alta potência e meia-vida curta (12-15h); alto risco de dependência e sintomas de abstinência interdose; útil em pânico.", notes: 'Inibidores da 3A4 (ex: cetoconazol, nefazodona) aumentam seus níveis significativamente.' },
+            { id: 'bromazepam', name: 'Bromazepam', class: 'Ansiolítico', substrates: ['3A4'], inhibitors: {}, inductors: {}, mustKnow: "Meia-vida intermediária (8-19h); lipofílico; usado para ansiedade e sintomas somáticos.", notes: 'Metabolismo hepático; 6 mg equivalem a aproximadamente 10 mg de diazepam.' },
+            { id: 'clobazam', name: 'Clobazam', class: 'Ansiolítico', substrates: ['3A4', '2C19'], inhibitors: {}, inductors: {}, mustKnow: "Menor efeito sedativo que os 1,4-benzodiazepínicos; usado como adjuvante em epilepsia e ansiedade.", notes: 'Metabólito ativo N-desmetilclobazam tem meia-vida longa (36-46h).' },
+            { id: 'clonazepam', name: 'Clonazepam', class: 'Ansiolítico', substrates: ['3A4'], inhibitors: {}, inductors: {}, mustKnow: "Alta potência e meia-vida longa (18-50h); menor risco de abstinência abrupta que alprazolam; útil em mania aguda e pânico.", notes: 'Metabolismo por nitroredução seguido de acetilação; pode ser tomado em dose única diária.' },
+            { id: 'clorazepato', name: 'Clorazepato', class: 'Ansiolítico', substrates: ['3A4', '2C19'], inhibitors: {}, inductors: {}, mustKnow: "Pró-fármaco inativo convertido no estômago em nordiazepam (depende da acidez gástrica); meia-vida longa.", notes: 'Absorção rápida devido à lipossolubilidade; usado em abstinência alcoólica.' },
+            { id: 'clordiazepóxido', name: 'Clordiazepóxido', class: 'Ansiolítico', substrates: ['3A4'], inhibitors: {}, inductors: {}, mustKnow: "Primeiro BZD descoberto; meia-vida longa com múltiplos metabólitos ativos; padrão para abstinência alcoólica.", notes: 'Absorção intramuscular é errática (evitar via IM); metabolismo oxidativo complexo.' },
+            { id: 'cloxazolam', name: 'Cloxazolam', class: 'Ansiolítico', substrates: ['Hepático (oxidação)'], inhibitors: {}, inductors: {}, mustKnow: "Lipofílico com início rápido; meia-vida longa (40h+); metabólitos ativos.", notes: 'Estrutura química distinta (anel oxazólico adicional).' },
+            { id: 'diazepam', name: 'Diazepam', class: 'Ansiolítico', substrates: ['3A4', '2C19'], inhibitors: {}, inductors: {}, mustKnow: "Protótipo; alta lipossolubilidade (início rápido) e meia-vida longa (20-100h) com acúmulo de metabólitos ativos (nordiazepam).", notes: 'Acumula-se em tecido adiposo (risco em obesos/idosos); inibidores da 2C19 (omeprazol) aumentam níveis.' },
+            { id: 'estazolam', name: 'Estazolam', class: 'Ansiolítico', substrates: ['3A4'], inhibitors: {}, inductors: {}, mustKnow: "Hipnótico de meia-vida intermediária (10-24h); metabólitos praticamente inativos.", notes: 'Semelhante ao alprazolam na estrutura; usado para insônia.' },
+            { id: 'flunitrazepam', name: 'Flunitrazepam', class: 'Ansiolítico', substrates: ['3A4', '2C19'], inhibitors: {}, inductors: {}, mustKnow: "Potente hipnótico; meia-vida 18-26h; associado a amnésia anterógrada e abuso (comprimidos têm corante azul para segurança).", notes: 'Metabólito ativo (7-aminoflunitrazepam); não disponível nos EUA.' },
+            { id: 'flurazepam', name: 'Flurazepam', class: 'Ansiolítico', substrates: ['3A4'], inhibitors: {}, inductors: {}, mustKnow: "Hipnótico de meia-vida muito longa (até 100h+ devido ao metabólito N-desalquilflurazepam); alto risco de sedação diurna ('ressaca').", notes: 'Acúmulo significativo com uso crônico, especialmente em idosos.' },
+            { id: 'lorazepam', name: 'Lorazepam', class: 'Ansiolítico', substrates: ['UGT (Glicuronidação)'], inhibitors: {}, inductors: {}, mustKnow: "Não passa pelo sistema CYP (metabolismo direto por conjugação); escolha preferencial para hepatopatas e idosos.", notes: 'Meia-vida 10-20h; sem metabólitos ativos; boa opção IM para agitação/catatonia.' },
+            { id: 'midazolam', name: 'Midazolam', class: 'Ansiolítico', substrates: ['3A4'], inhibitors: {}, inductors: {}, mustKnow: "Ação ultracurta (<6h); potente amnésia anterógrada; usado principalmente para sedação em procedimentos/anestesia.", notes: 'Metabólito alfa-hidroxi é ativo; inibidores da 3A4 prolongam drasticamente a sedação.' },
+            { id: 'nitrazepam', name: 'Nitrazepam', class: 'Ansiolítico', substrates: ['Nitroredução'], inhibitors: {}, inductors: {}, mustKnow: "Hipnótico de meia-vida longa (16-48h); risco de acúmulo e sedação diurna em idosos.", notes: 'Metabolismo por nitroredução hepática; usado para espasmos infantis em alguns países.' },
+            { id: 'oxazepam', name: 'Oxazepam', class: 'Ansiolítico', substrates: ['UGT (Glicuronidação)'], inhibitors: {}, inductors: {}, mustKnow: "Metabolismo direto por conjugação (não CYP); início de ação lento (baixa lipossolubilidade); seguro em hepatopatas.", notes: 'Metabólito ativo final do diazepam; meia-vida curta-intermédia (5-15h).' },
+            { id: 'quazepam', name: 'Quazepam', class: 'Ansiolítico', substrates: ['3A4'], inhibitors: {}, inductors: {}, mustKnow: "Seletivo para receptores BZ1 (tipo 1); meia-vida longa devido a metabólitos ativos (semelhante ao flurazepam).", notes: 'Pode causar sedação diurna devido ao acúmulo.' },
+            { id: 'temazepam', name: 'Temazepam', class: 'Ansiolítico', substrates: ['UGT (Glicuronidação)'], inhibitors: {}, inductors: {}, mustKnow: "Ação intermediária (8-15h); usado para insônia; metabolismo por conjugação (sem metabólitos ativos CYP).", notes: 'É um dos metabólitos do diazepam; absorção lenta.' },
+            { id: 'triazolam', name: 'Triazolam', class: 'Ansiolítico', substrates: ['3A4'], inhibitors: {}, inductors: {}, mustKnow: "Meia-vida ultracurta (1.5-5.5h); alto risco de amnésia anterógrada e confusão; insônia de rebote comum.", notes: 'Contraindicado com inibidores potentes da 3A4 (ex: cetoconazol, inibidores de protease).' }
+        ];
+
+        let selectedIds = new Set();
+        let currentFilter = 'all';
+        const apiKey = ""; 
+
+        window.onload = () => {
+            renderDrugList();
+            lucide.createIcons();
+            document.getElementById('drug-search').addEventListener('input', e => renderDrugList(e.target.value));
+            document.getElementById('smoking-toggle').addEventListener('change', runAnalysis);
+            document.getElementById('prodrug-toggle').addEventListener('change', runAnalysis);
+            document.getElementById('ask-ai-btn').addEventListener('click', askGemini);
+        };
+
+        function setFilter(filter) {
+            currentFilter = filter;
+            renderDrugList(document.getElementById('drug-search').value);
+        }
+
+        function renderDrugList(search = "") {
+            const container = document.getElementById('drug-list');
+            container.innerHTML = "";
+            drugs.filter(d => {
+                const matches = d.name.toLowerCase().includes(search.toLowerCase()) || d.class.toLowerCase().includes(search.toLowerCase());
+                const matchesFilter = currentFilter === 'all' || d.class.includes(currentFilter);
+                return matches && matchesFilter;
+            }).forEach(drug => {
+                const isSelected = selectedIds.has(drug.id);
+                const div = document.createElement('div');
+                div.className = `drug-card p-3 border rounded-xl cursor-pointer transition-all flex items-center justify-between hover:border-blue-300 ${isSelected ? 'selected ring-1 ring-blue-400 shadow-sm' : 'bg-white shadow-sm'}`;
+                div.onclick = () => toggleDrug(drug.id);
+                div.innerHTML = `
+                    <div>
+                        <p class="font-bold text-sm text-slate-700">${drug.name}</p>
+                        <p class="text-[9px] uppercase font-bold text-slate-400">${drug.class}</p>
+                    </div>
+                    ${isSelected ? '<i data-lucide="minus-circle" class="text-red-400 w-5 h-5"></i>' : '<i data-lucide="plus-circle" class="text-blue-400 w-5 h-5"></i>'}
+                `;
+                container.appendChild(div);
+            });
+            lucide.createIcons();
+        }
+
+        function toggleDrug(id) {
+            if (selectedIds.has(id)) selectedIds.delete(id);
+            else selectedIds.add(id);
+            updateUI();
+            runAnalysis();
+            renderDrugList(document.getElementById('drug-search').value);
+        }
+
+        function updateUI() {
+            const count = selectedIds.size;
+            document.getElementById('selected-count').innerText = count;
+            document.getElementById('empty-state').classList.toggle('hidden', count > 0);
+            document.getElementById('analysis-content').classList.toggle('hidden', count === 0);
+        }
+
+        function runAnalysis() {
+            const drugDetails = document.getElementById('drug-details');
+            const alertContainer = document.getElementById('interaction-alerts');
+            drugDetails.innerHTML = "";
+            alertContainer.innerHTML = "";
+
+            const selected = drugs.filter(d => selectedIds.has(d.id));
+            const smoking = document.getElementById('smoking-toggle').checked;
+            const useProdrug = document.getElementById('prodrug-toggle').checked;
+
+            selected.forEach(drug => {
+                const card = document.createElement('div');
+                card.className = "bg-white border border-slate-200 rounded-xl p-4 shadow-sm h-full flex flex-col";
+                card.innerHTML = `
+                    <div class="flex items-center gap-2 mb-3 font-bold text-blue-900 border-b pb-2">
+                        <i data-lucide="stethoscope" class="w-4 h-4"></i> ${drug.name}
+                    </div>
+                    <div class="space-y-3 text-[11px] flex-1">
+                        <div class="bg-slate-50 p-2 rounded-lg">
+                            <p class="text-[9px] uppercase font-bold text-slate-400 mb-1">Via Metabólica Principal</p>
+                            <p>${drug.substrates.join(', ') || 'Nenhuma (ou Renal)'}</p>
+                        </div>
+                        <div class="bg-amber-50 p-2 rounded-lg border border-amber-100">
+                            <p class="text-[9px] uppercase font-bold text-amber-600 mb-1">Must-Know Clínico</p>
+                            <p class="font-medium text-amber-900 leading-relaxed">${drug.mustKnow}</p>
+                        </div>
+                    </div>
+                `;
+                drugDetails.appendChild(card);
+            });
+
+            let alerts = [];
+            selected.forEach(drugA => {
+                selected.forEach(drugB => {
+                    if (drugA.id === drugB.id) return;
+                    Object.entries(drugA.inhibitors).forEach(([enzyme, potency]) => {
+                        if (drugB.substrates.includes(enzyme)) {
+                            alerts.push({ type: 'danger', title: `Toxicidade: ${drugA.name} → ${drugB.name}`, text: `${drugA.name} inibe a via **${enzyme}**, reduzindo a depuração de ${drugB.name}.`, rec: `Aumento perigoso dos níveis de **${drugB.name}**.` });
+                        }
+                    });
+                    if (drugA.inductors) {
+                        Object.entries(drugA.inductors).forEach(([enzyme, potency]) => {
+                            if (drugB.substrates.includes(enzyme)) {
+                                alerts.push({ type: 'warning', title: `Falha: ${drugA.name} → ${drugB.name}`, text: `${drugA.name} induz a via **${enzyme}**, acelerando a metabolização de ${drugB.name}.`, rec: `Eficácia de **${drugB.name}** severamente comprometida.` });
+                            }
+                        });
+                    }
+                });
+            });
+
+            if (smoking) {
+                selected.filter(d => d.substrates.includes('1A2')).forEach(d => {
+                    alerts.push({ type: 'warning', title: 'Impacto Tabagismo', text: `O fumo induz a 1A2.`, rec: `Níveis de **${d.name}** reduzidos (risco de recaída).` });
+                });
+            }
+
+            if (useProdrug) {
+                const inhibitor2D6 = selected.find(d => d.inhibitors['2D6'] === 'Forte');
+                if (inhibitor2D6) {
+                    alerts.push({ type: 'danger', title: 'Ineficácia Analgésica', text: `${inhibitor2D6.name} impede a ativação de Tramadol/Codeína via 2D6.`, rec: `O paciente não sentirá alívio da dor.` });
+                }
+            }
+
+            const unique = Array.from(new Set(alerts.map(JSON.stringify))).map(JSON.parse);
+            if (unique.length === 0) {
+                alertContainer.innerHTML = `<div class="p-4 bg-green-50 text-green-700 rounded-xl text-sm font-medium border border-green-200 flex gap-2 items-center"><i data-lucide="check-circle" class="w-4 h-4"></i> Nenhuma interação cinética grave detectada via CYP450.</div>`;
+            } else {
+                unique.forEach(alert => {
+                    const color = alert.type === 'danger' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-amber-50 border-amber-200 text-amber-800';
+                    const div = document.createElement('div');
+                    div.className = `p-4 border rounded-xl ${color} space-y-1`;
+                    div.innerHTML = `<p class="font-bold text-sm">${alert.title}</p><p class="text-xs">${alert.text}</p><p class="text-[10px] font-bold uppercase mt-2">Conduta: ${alert.rec}</p>`;
+                    alertContainer.appendChild(div);
+                });
+            }
+            lucide.createIcons();
+        }
+
+        async function askGemini() {
+            const selectedNames = Array.from(selectedIds).map(id => drugs.find(d => d.id === id).name);
+            if (!selectedNames.length) return;
+            const uiResponse = document.getElementById('ai-response');
+            const btn = document.getElementById('ask-ai-btn');
+            uiResponse.innerHTML = `<div class="flex items-center gap-2 animate-pulse"><i data-lucide="loader-2" class="animate-spin w-4 h-4"></i> Analisando riscos metabólicos...</div>`;
+            btn.disabled = true;
+            lucide.createIcons();
+            const smoking = document.getElementById('smoking-toggle').checked;
+            const prompt = `Analise a combinação de: ${selectedNames.join(', ')}. Paciente ${smoking ? 'fuma' : 'não fuma'}. Considere interações CYP450 e riscos específicos conforme Stahl e Cordioli. Responda em Português de Portugal com tópicos diretos.`;
+            const systemPrompt = "Você é um consultor médico. Forneça respostas técnicas e diretas sobre riscos e ajustes de dose.";
+            
+            let retries = 0;
+            while (retries < 5) {
+                try {
+                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], systemInstruction: { parts: [{ text: systemPrompt }] } })
+                    });
+                    const data = await res.json();
+                    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                    uiResponse.innerHTML = text.replace(/\n/g, '<br>');
+                    break;
+                } catch (e) {
+                    retries++;
+                    await new Promise(r => setTimeout(r, Math.pow(2, retries) * 1000));
+                }
+            }
+            btn.disabled = false;
+        }
+    </script>
+</body>
+</html>
